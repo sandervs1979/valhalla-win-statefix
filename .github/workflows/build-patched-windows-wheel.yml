@@ -1,0 +1,118 @@
+name: Build patched Windows wheel
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Release
+  MSVC_VERSION: "2022"
+  VCPKG_VERSION: "0e39c10"
+  VCPKG_INSTALL_OPTIONS: "--x-abi-tools-use-exact-versions"
+  VCPKG_DISABLE_COMPILER_TRACKING: ON
+  VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+  # This branch intentionally contains one post-3.8.3 patch, but no 3.8.3 tag.
+  SETUPTOOLS_SCM_PRETEND_VERSION: 3.8.3.post1
+
+jobs:
+  build-wheel:
+    name: Build patched pyvalhalla wheel
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Configure vcpkg paths
+        shell: bash
+        run: |
+          workspace="$(printf '%s' '${{ github.workspace }}' | tr '\\' '/')"
+          echo "VCPKG_INSTALLATION_ROOT=${workspace}/vcpkg" >> $GITHUB_ENV
+          echo "VCPKG_TOOLCHAIN_FILE=${workspace}/vcpkg/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+          echo "VCPKG_DEFAULT_TRIPLET=x64-windows" >> $GITHUB_ENV
+          echo "VCPKG_TRIPLET_PATH=${workspace}/vcpkg/triplets/x64-windows.cmake" >> $GITHUB_ENV
+          echo "VCPKG_DEFAULT_BINARY_CACHE=${workspace}/vcpkg/archives" >> $GITHUB_ENV
+
+      - name: Install GNU make and awk
+        run: choco install gawk make --no-progress --yes
+
+      - name: Install vcpkg
+        shell: bash
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          git checkout "$VCPKG_VERSION"
+          mkdir archives
+          echo "set(VCPKG_BUILD_TYPE release)" >> "$VCPKG_TRIPLET_PATH"
+          echo "set(VCPKG_DISABLE_COMPILER_TRACKING $VCPKG_DISABLE_COMPILER_TRACKING)" >> "$VCPKG_TRIPLET_PATH"
+          cmd.exe /c bootstrap-vcpkg.bat
+
+      - name: Restore vcpkg packages
+        uses: actions/cache@v4
+        with:
+          key: vcpkg-${{ runner.os }}-${{ env.VCPKG_VERSION }}-${{ env.MSVC_VERSION }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
+          path: |
+            build/vcpkg_installed
+            vcpkg/archives
+            vcpkg/packages
+            vcpkg/downloads/tools
+
+      - name: Setup Developer Command Prompt for VS
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure source build
+        shell: bash
+        run: |
+          cmake -B build \
+            -G "Visual Studio 17 2022" \
+            -A x64 \
+            -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_TOOLCHAIN_FILE" \
+            -DVCPKG_TARGET_TRIPLET="$VCPKG_DEFAULT_TRIPLET" \
+            -DVCPKG_INSTALL_OPTIONS="$VCPKG_INSTALL_OPTIONS" \
+            -DENABLE_DATA_TOOLS=ON \
+            -DENABLE_TOOLS=ON \
+            -DENABLE_PYTHON_BINDINGS=OFF \
+            -DENABLE_HTTP=ON \
+            -DENABLE_TESTS=OFF \
+            -DENABLE_CCACHE=OFF \
+            -DENABLE_SERVICES=OFF \
+            -DPREFER_EXTERNAL_DEPS=ON
+
+      - name: Build and smoke-test Valhalla tools
+        shell: bash
+        run: |
+          cmake --build build --config Release -- /clp:ErrorsOnly /p:BuildInParallel=true /m:2
+          export PATH="$PATH:${{ github.workspace }}/build/vcpkg_installed/$BUILD_TYPE/bin"
+          ./build/$BUILD_TYPE/valhalla_build_tiles.exe -c ./test/win/valhalla.json ./test/data/utrecht_netherlands.osm.pbf
+
+      - name: Configure Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build wheel
+        uses: pypa/cibuildwheel@v2.23.3
+        env:
+          CIBW_BUILD: cp312-*
+          CIBW_ENVIRONMENT_WINDOWS: >-
+            CMAKE_ARGS="-DENABLE_SERVICES=OFF -DENABLE_TESTS=OFF -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_TOOLCHAIN_FILE }} -DVCPKG_TARGET_TRIPLET=${{ env.VCPKG_DEFAULT_TRIPLET }}"
+
+      - name: Verify wheel executables
+        shell: pwsh
+        run: |
+          $wheel = Get-ChildItem -LiteralPath wheelhouse -Filter '*.whl' | Select-Object -First 1
+          if (-not $wheel) { throw 'No wheel was produced.' }
+          python -m pip install $wheel.FullName
+          python -m valhalla valhalla_build_tiles -h
+
+      - name: Upload patched wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyvalhalla-3.8.3-win-statefix
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+          retention-days: 7
