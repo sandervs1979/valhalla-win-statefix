@@ -85,7 +85,7 @@ jobs:
       - name: Build and smoke-test Valhalla tools
         shell: bash
         run: |
-          cmake --build build --config Release -- /clp:ErrorsOnly /p:BuildInParallel=true /m:2
+          cmake --build build --config Release --parallel 2
           export PATH="$PATH:${{ github.workspace }}/build/vcpkg_installed/$BUILD_TYPE/bin"
           ./build/$BUILD_TYPE/valhalla_build_tiles.exe -c ./test/win/valhalla.json ./test/data/utrecht_netherlands.osm.pbf
 
