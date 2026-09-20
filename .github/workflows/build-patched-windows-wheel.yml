@@ -13,8 +13,9 @@ env:
   VCPKG_INSTALL_OPTIONS: "--x-abi-tools-use-exact-versions"
   VCPKG_DISABLE_COMPILER_TRACKING: ON
   VCPKG_ROOT: ${{ github.workspace }}/vcpkg
-  # This branch intentionally contains one post-3.8.3 patch, but no 3.8.3 tag.
-  SETUPTOOLS_SCM_PRETEND_VERSION: 3.8.3.post1
+  # This branch intentionally contains post-3.8.3 Windows recovery patches,
+  # but no 3.8.3 tag.
+  SETUPTOOLS_SCM_PRETEND_VERSION: 3.8.3.post2
 
 jobs:
   build-wheel:
@@ -108,11 +109,12 @@ jobs:
           if (-not $wheel) { throw 'No wheel was produced.' }
           python -m pip install $wheel.FullName
           python -m valhalla valhalla_build_tiles -h
+          python -m valhalla valhalla_assign_speeds -h
 
       - name: Upload patched wheel
         uses: actions/upload-artifact@v4
         with:
-          name: pyvalhalla-3.8.3-win-statefix
+          name: pyvalhalla-3.8.3-win-statefix-diag-speedassign
           path: wheelhouse/*.whl
           if-no-files-found: error
           retention-days: 7

@@ -111,7 +111,7 @@ if (SKBUILD)
   endif()
 
   if (ENABLE_DATA_TOOLS)
-    set(data_tools valhalla_build_tiles valhalla_build_admins valhalla_add_predicted_traffic valhalla_add_landmarks valhalla_ingest_transit valhalla_convert_transit)
+    set(data_tools valhalla_build_tiles valhalla_build_admins valhalla_assign_speeds valhalla_add_predicted_traffic valhalla_add_landmarks valhalla_ingest_transit valhalla_convert_transit)
     foreach (exe ${data_tools})
       install_executable(${exe})
     endforeach()

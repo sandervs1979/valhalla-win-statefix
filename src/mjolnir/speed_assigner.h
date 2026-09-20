@@ -169,6 +169,11 @@ protected:
         break;
     }
 
+    if (rc >= speed_table.way.size()) {
+      LOG_WARN("Default-speed assignment skipped invalid road class " + std::to_string(rc));
+      return kUnconfiguredSpeed;
+    }
+
     // exit ramp
     if (directededge.link()) {
       // these classes dont have links
@@ -336,6 +341,10 @@ public:
     // Modify speed for roads in urban regions
     if (density > kMaxRuralDensity) {
       uint32_t rc = static_cast<uint32_t>(directededge.classification());
+      if (rc >= sizeof(urban_rc_speed) / sizeof(urban_rc_speed[0])) {
+        LOG_WARN("Default-speed assignment skipped invalid road class " + std::to_string(rc));
+        return false;
+      }
       directededge.set_speed(urban_rc_speed[rc]);
     }
 

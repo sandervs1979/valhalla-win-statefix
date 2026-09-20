@@ -990,6 +990,8 @@ void enhance(const boost::property_tree::ptree& mjolnir_config,
 
   // Config driven speed assignment
   auto speeds_config = mjolnir_config.get_optional<std::string>("default_speeds_config");
+  const bool speed_assignment_diagnostics =
+      speeds_config && mjolnir_config.get<bool>("speed_assignment_diagnostics", false);
   SpeedAssigner speed_assigner(speeds_config);
 
   // Get some things we need throughout
@@ -1015,6 +1017,10 @@ void enhance(const boost::property_tree::ptree& mjolnir_config,
     graph_tile_ptr tile = reader.GetGraphTile(tile_id);
     if (!tile || tile->header()->nodecount() == 0) {
       continue;
+    }
+
+    if (speed_assignment_diagnostics) {
+      LOG_INFO("[speed-diagnostic] begin tile " + std::to_string(tile_id));
     }
 
     // Tile builder - serialize in existing tile so we can add admin names

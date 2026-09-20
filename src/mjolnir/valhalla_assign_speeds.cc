@@ -29,6 +29,8 @@ void assign(const boost::property_tree::ptree& config,
             std::promise<std::pair<size_t, size_t>>& result) {
   size_t assigned = 0, total = 0;
   SpeedAssigner assigner(config.get_optional<std::string>("mjolnir.default_speeds_config"));
+  const bool speed_assignment_diagnostics =
+      config.get<bool>("mjolnir.speed_assignment_diagnostics", false);
   bool infer_turn_channels = config.get<bool>("mjolnir.data_processing.infer_turn_channels");
   GraphReader graph_reader(config.get_child("mjolnir"));
 
@@ -47,6 +49,9 @@ void assign(const boost::property_tree::ptree& config,
     graph_tile_ptr tile = graph_reader.GetGraphTile(tile_id);
     if (tile->header()->directededgecount() == 0)
       continue;
+    if (speed_assignment_diagnostics) {
+      LOG_INFO("[speed-diagnostic] begin tile " + std::to_string(tile_id));
+    }
     std::vector<DirectedEdge> edges(tile->directededge(0),
                                     tile->directededge(0) + tile->header()->directededgecount());
     for (auto& edge : edges) {
