@@ -992,6 +992,8 @@ void enhance(const boost::property_tree::ptree& mjolnir_config,
   auto speeds_config = mjolnir_config.get_optional<std::string>("default_speeds_config");
   const bool speed_assignment_diagnostics =
       speeds_config && mjolnir_config.get<bool>("speed_assignment_diagnostics", false);
+  const auto speed_assignment_diagnostic_tile =
+      mjolnir_config.get_optional<std::string>("speed_assignment_diagnostic_tile");
   SpeedAssigner speed_assigner(speeds_config);
 
   // Get some things we need throughout
@@ -1019,7 +1021,11 @@ void enhance(const boost::property_tree::ptree& mjolnir_config,
       continue;
     }
 
-    if (speed_assignment_diagnostics) {
+    const bool diagnose_this_tile =
+        speed_assignment_diagnostics &&
+        (!speed_assignment_diagnostic_tile ||
+         *speed_assignment_diagnostic_tile == std::to_string(tile_id));
+    if (diagnose_this_tile) {
       LOG_INFO("[speed-diagnostic] begin tile " + std::to_string(tile_id));
     }
 
@@ -1148,6 +1154,12 @@ void enhance(const boost::property_tree::ptree& mjolnir_config,
       for (uint32_t j = 0; j < nodeinfo.edge_count(); j++) {
         DirectedEdge& directededge = tilebuilder->directededge_builder(nodeinfo.edge_index() + j);
 
+        if (diagnose_this_tile) {
+          LOG_INFO("[speed-diagnostic] tile " + std::to_string(tile_id) + " node=" +
+                   std::to_string(i) + " edge=" + std::to_string(j) + " end_node=" +
+                   std::to_string(directededge.endnode()));
+        }
+
         auto e_offset = tilebuilder->edgeinfo(&directededge);
         std::string end_node_code = "";
         std::string end_node_state_code = "";
@@ -1161,8 +1173,21 @@ void enhance(const boost::property_tree::ptree& mjolnir_config,
           admin = tile->admin(end_admin_index);
         } else {
           endnodetile = reader.GetGraphTile(directededge.endnode());
+          if (!endnodetile) {
+            const std::string message =
+                "[speed-diagnostic] unable to load end-node tile for source tile " +
+                std::to_string(tile_id) + " node=" + std::to_string(i) + " edge=" +
+                std::to_string(j) + " end_node=" + std::to_string(directededge.endnode());
+            LOG_ERROR(message);
+            throw std::runtime_error(message);
+          }
           end_admin_index = endnodetile->node(directededge.endnode().id())->admin_index();
           admin = endnodetile->admin(end_admin_index);
+        }
+        if (diagnose_this_tile) {
+          LOG_INFO("[speed-diagnostic] tile " + std::to_string(tile_id) + " node=" +
+                   std::to_string(i) + " edge=" + std::to_string(j) + " end_admin=" +
+                   std::to_string(end_admin_index));
         }
         end_node_code = admin->country_iso();
         end_node_state_code = admin->state_iso();
@@ -1286,6 +1311,10 @@ void enhance(const boost::property_tree::ptree& mjolnir_config,
         // Speed assignment
         speed_assigner.UpdateSpeed(directededge, density, infer_turn_channels, end_node_code,
                                    end_node_state_code);
+        if (diagnose_this_tile) {
+          LOG_INFO("[speed-diagnostic] tile " + std::to_string(tile_id) + " node=" +
+                   std::to_string(i) + " edge=" + std::to_string(j) + " speed assigned");
+        }
 
         // Name continuity - on the directededge.
         uint32_t ntrans = nodeinfo.local_edge_count();
