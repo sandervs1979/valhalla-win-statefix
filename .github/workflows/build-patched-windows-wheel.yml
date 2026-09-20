@@ -15,7 +15,7 @@ env:
   VCPKG_ROOT: ${{ github.workspace }}/vcpkg
   # This branch intentionally contains post-3.8.3 Windows recovery patches,
   # but no 3.8.3 tag.
-  SETUPTOOLS_SCM_PRETEND_VERSION: 3.8.3.post3
+  SETUPTOOLS_SCM_PRETEND_VERSION: 3.8.3.post4
 
 jobs:
   build-wheel:
@@ -114,7 +114,7 @@ jobs:
       - name: Upload patched wheel
         uses: actions/upload-artifact@v4
         with:
-          name: pyvalhalla-3.8.3-win-statefix-diag-edge
+          name: pyvalhalla-3.8.3-win-statefix-diag-edge2
           path: wheelhouse/*.whl
           if-no-files-found: error
           retention-days: 7

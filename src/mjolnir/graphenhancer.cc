@@ -1013,6 +1013,10 @@ void enhance(const boost::property_tree::ptree& mjolnir_config,
     tilequeue.pop();
     lock.unlock();
 
+    if (speed_assignment_diagnostics) {
+      LOG_INFO("[speed-diagnostic] loading tile " + std::to_string(tile_id));
+    }
+
     // Get a readable tile.If the tile is empty, skip it. Empty tiles are
     // added where ways go through a tile but no end not is within the tile.
     // This allows creation of connectivity maps using the tile set,
@@ -1025,7 +1029,7 @@ void enhance(const boost::property_tree::ptree& mjolnir_config,
         speed_assignment_diagnostics &&
         (!speed_assignment_diagnostic_tile ||
          *speed_assignment_diagnostic_tile == std::to_string(tile_id));
-    if (diagnose_this_tile) {
+    if (speed_assignment_diagnostics) {
       LOG_INFO("[speed-diagnostic] begin tile " + std::to_string(tile_id));
     }
 
