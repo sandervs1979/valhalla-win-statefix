@@ -110,6 +110,7 @@ jobs:
           python -m pip install $wheel.FullName
           python -m valhalla valhalla_build_tiles -h
           python -m valhalla valhalla_assign_speeds -h
+          python -m valhalla valhalla_build_extract -h
 
       - name: Upload patched wheel
         uses: actions/upload-artifact@v4
