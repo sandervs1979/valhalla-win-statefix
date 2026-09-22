@@ -36,7 +36,7 @@ jobs:
           CIBW_BUILD: cp311-manylinux_x86_64
           CIBW_ARCHS_LINUX: x86_64
           CIBW_ENVIRONMENT: >-
-            CMAKE_ARGS="-DVALHALLA_VERSION_MODIFIER=optilogic-cp311"
+            SETUPTOOLS_SCM_PRETEND_VERSION="3.9.0"
             LD_LIBRARY_PATH="/usr/local/lib:/usr/local/lib64"
             CIBW_BUILD_VERBOSITY=3
             SKBUILD_LOGGING_LEVEL=DEBUG
