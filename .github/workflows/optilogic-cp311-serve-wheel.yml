@@ -2,6 +2,9 @@ name: Build Optilogic CPython 3.11 serve wheel
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 3.9.0-optilogic-serve
 
 permissions:
   contents: read
